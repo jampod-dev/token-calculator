@@ -102,6 +102,7 @@
         <strong>{{ currentModel.name }}</strong>:
         ${{ currentModel.inputPrice }}/1M input tokens,
         ${{ currentModel.outputPrice }}/1M output tokens
+        <br>Currency rates do not reflect live market exchange rates
       </p>
     </div>
   </div>
@@ -242,19 +243,30 @@ export default {
     }
   },
   methods: {
+    fetchWithFallback(endpoint) {
+      const primaryUrl = `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/${endpoint}`;
+      const fallbackUrl = `https://latest.currency-api.pages.dev/v1/${endpoint}`;
+
+      return fetch(primaryUrl)
+        .then(response => {
+          if (!response.ok) throw new Error('Primary fetch failed');
+          return response.json();
+        })
+        .catch(() => {
+          return fetch(fallbackUrl).then(response => response.json());
+        });
+    },
     getCurrencyRates() {
-      fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json')
-        .then(response => response.json())
+      this.fetchWithFallback('currencies/usd.json')
         .then(data => {
           this.currencyRates = data.usd;
         })
         .catch(error => {
-          console.error('Error fetching currencies:', error);
+          console.error('Error fetching currency rates:', error);
         });
     },
     getCurrencies() {
-      fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json')
-        .then(response => response.json())
+      this.fetchWithFallback('currencies.min.json')
         .then(data => {
           this.currencies = data;
         })
