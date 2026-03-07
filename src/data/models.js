@@ -208,6 +208,38 @@ export const models = {
           "notes": "Now V3.2-based. Dedicated reasoning endpoint. Cache hit input $0.05."
         }
       }
+    },
+    "moonshot": {
+      "models": {
+        "kimi-k2.5": {
+          "input_per_1m": 0.60,
+          "output_per_1m": 3.00,
+          "max_context": 260000,
+          "api_model_id": "kimi-k2.5",
+          "notes": "Latest flagship. Native multimodal (vision+text). Thinking/non-thinking modes. Cache hit input $0.15 (75% discount). OpenAI-compatible API at api.moonshot.ai/v1."
+        },
+        "kimi-k2.5-non-thinking": {
+          "input_per_1m": 0.60,
+          "output_per_1m": 2.50,
+          "max_context": 260000,
+          "api_model_id": "kimi-k2.5",
+          "notes": "Same model in non-thinking mode. Slightly cheaper output."
+        },
+        "kimi-k2": {
+          "input_per_1m": 0.60,
+          "output_per_1m": 2.50,
+          "max_context": 131000,
+          "api_model_id": "kimi-k2",
+          "notes": "Previous gen. Cache hit input $0.15 (75% discount)."
+        },
+        "kimi-k2-0905-exacto": {
+          "input_per_1m": 0.39,
+          "output_per_1m": 1.90,
+          "max_context": 262000,
+          "api_model_id": "kimi-k2-0905",
+          "notes": "Exacto variant with 262K context."
+        }
+      }
     }
   },
   "bedrock": {

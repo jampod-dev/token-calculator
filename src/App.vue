@@ -1,6 +1,18 @@
 <template>
   <div class="calculator">
-    <h1>LLM Token Price Calculator</h1>
+    <div class="calculator-header">
+      <h1>LLM Token Price Calculator</h1>
+      <div class="currency-selector">
+        <v-select
+          v-model="selectedCurrency"
+          :options="currencyOptions"
+          :reduce="c => c.id"
+          label="name"
+          placeholder="USD"
+          :clearable="false"
+        />
+      </div>
+    </div>
 
     <div class="form-group">
       <label for="provider">Provider</label>
@@ -25,6 +37,16 @@
         placeholder="Search models..."
         :disabled="!selectedProvider"
       />
+    </div>
+
+    <div class="form-group form-group--checkbox" v-if="bedrockAvailable">
+      <label>
+        <input
+          type="checkbox"
+          v-model="useBedrock"
+        >
+        Use AWS Bedrock pricing
+      </label>
     </div>
 
     <div class="form-group">
@@ -80,6 +102,7 @@
         <strong>{{ currentModel.name }}</strong>:
         ${{ currentModel.inputPrice }}/1M input tokens,
         ${{ currentModel.outputPrice }}/1M output tokens
+        <br>All prices in USD
       </p>
     </div>
   </div>
@@ -99,11 +122,19 @@ export default {
     return {
       selectedProvider: null,
       selectedModel: null,
+      useBedrock: false,
       inputTokens: 0,
       outputTokens: 0,
       numRequests: 1,
-      modelsData
+      modelsData,
+      currencyRates: null,
+      currencies: null,      
+      selectedCurrency: 'usd',
     };
+  },
+  mounted() {
+    this.getCurrencies()
+    this.getCurrencyRates();
   },
   computed: {
     providerOptions() {
@@ -126,8 +157,27 @@ export default {
         notes: model.notes
       }));
     },
+    bedrockAvailable() {
+      if (!this.selectedProvider || !this.selectedModel) return false;
+      const bedrockProvider = this.modelsData.bedrock?.[this.selectedProvider];
+      return bedrockProvider && this.selectedModel in bedrockProvider;
+    },
+    bedrockModel() {
+      if (!this.bedrockAvailable) return null;
+      const model = this.modelsData.bedrock[this.selectedProvider][this.selectedModel];
+      return {
+        id: this.selectedModel,
+        name: `${this.selectedModel} (Bedrock)`,
+        inputPrice: model.input_per_1m,
+        outputPrice: model.output_per_1m,
+        notes: model.notes
+      };
+    },
     currentModel() {
       if (!this.selectedProvider || !this.selectedModel) return null;
+      if (this.useBedrock && this.bedrockModel) {
+        return this.bedrockModel;
+      }
       const model = this.modelOptions.find(m => m.id === this.selectedModel);
       return model || null;
     },
@@ -144,30 +194,121 @@ export default {
     },
     totalCost() {
       return this.inputCost + this.outputCost;
+    },
+    currencyOptions() {
+      if (!this.currencies) return [{ id: 'usd', name: '🇺🇸 USD' }];
+
+      // ISO 4217 fiat currencies only
+      const fiatCurrencies = new Set([
+        'usd', 'eur', 'gbp', 'jpy', 'chf', 'cad', 'aud', 'nzd', 'cny', 'hkd',
+        'sgd', 'sek', 'nok', 'dkk', 'mxn', 'brl', 'inr', 'rub', 'zar', 'krw',
+        'twd', 'thb', 'myr', 'idr', 'php', 'vnd', 'aed', 'sar', 'ils', 'try',
+        'pln', 'czk', 'huf', 'ron', 'bgn', 'hrk', 'isk', 'uah', 'egp', 'ngn',
+        'kes', 'ghc', 'tzs', 'ugx', 'mad', 'dzd', 'tnd', 'pkr', 'bdt', 'lkr',
+        'mmk', 'kzt', 'uzs', 'azn', 'gel', 'amd', 'byn', 'mdl', 'rsd', 'mkd',
+        'all', 'bam', 'jod', 'lbp', 'kwd', 'bhd', 'omr', 'qar', 'cop', 'ars',
+        'clp', 'pen', 'uyu', 'pyg', 'bob', 'ves', 'crc', 'pab', 'dop', 'gtq',
+        'hnl', 'nio', 'jmd', 'ttd', 'bbd', 'xcd', 'awg', 'ang', 'bsd', 'kyd',
+        'cup', 'htg', 'srd', 'gyd', 'bzd', 'fkp', 'gip', 'shp', 'xaf', 'xof',
+        'xpf', 'cdf', 'rwf', 'bif', 'djf', 'kmf', 'mga', 'mur', 'scr', 'mzn',
+        'aoa', 'zwl', 'bwp', 'szl', 'lsl', 'nad', 'zmw', 'mwk', 'etb', 'sos',
+        'ssp', 'sdg', 'ern', 'lyd', 'syp', 'iqd', 'irr', 'afn', 'npr', 'btn',
+        'mvr', 'khr', 'lak', 'kpw', 'mnt', 'fjd', 'pgk', 'wst', 'sbf', 'top',
+        'vuv', 'btc'
+      ]);
+
+      return Object.entries(this.currencies)
+        .filter(([id]) => fiatCurrencies.has(id))
+        .map(([id]) => ({
+          id,
+          name: `${this.currencyToFlag(id)} ${id.toUpperCase()}`
+        }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+    },
+    currencyCode() {
+      return (this.selectedCurrency || 'usd').toUpperCase();
+    },
+    conversionRate() {
+      if (!this.selectedCurrency || !this.currencyRates) return 1;
+      return this.currencyRates[this.selectedCurrency] || 1;
     }
   },
   watch: {
     selectedProvider() {
       this.selectedModel = null;
+      this.useBedrock = false;
+    },
+    selectedModel() {
+      this.useBedrock = false;
     }
   },
   methods: {
+    getCurrencyRates() {
+      fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json')
+        .then(response => response.json())
+        .then(data => {
+          this.currencyRates = data.usd;
+        })
+        .catch(error => {
+          console.error('Error fetching currencies:', error);
+        });
+    },
+    getCurrencies() {
+      fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json')
+        .then(response => response.json())
+        .then(data => {
+          this.currencies = data;
+        })
+        .catch(error => {
+          console.error('Error fetching currencies:', error);
+        });
+    },
+
+    currencyToFlag(currencyCode) {
+      // Special cases where currency code doesn't match country code
+      const overrides = {
+        eur: 'eu',
+        xaf: 'cm', // Central African CFA franc
+        xof: 'sn', // West African CFA franc
+        xcd: 'ag', // East Caribbean dollar
+        xpf: 'pf', // CFP franc
+        ang: 'cw', // Netherlands Antillean guilder
+        ssp: 'ss', // South Sudanese pound
+      };
+
+      const countryCode = overrides[currencyCode] || currencyCode.slice(0, 2);
+
+      // Convert country code to flag emoji
+      const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 0x1F1E6 + char.charCodeAt(0) - 65);
+
+      return String.fromCodePoint(...codePoints);
+    },
     formatProviderName(id) {
       const names = {
         anthropic: 'Anthropic',
         openai: 'OpenAI',
         google: 'Google',
-        deepseek: 'DeepSeek'
+        deepseek: 'DeepSeek',
+        moonshot: 'Moonshot'
       };
       return names[id] || id;
     },
     formatCurrency(value) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 6,
-        maximumFractionDigits: 6
-      }).format(value);
+      const convertedValue = value * this.conversionRate;
+      try {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: this.currencyCode,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6
+        }).format(convertedValue);
+      } catch {
+        // Fallback for unsupported currency codes
+        return `${this.currencyCode} ${convertedValue.toFixed(6)}`;
+      }
     }
   }
 };

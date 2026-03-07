@@ -48,12 +48,39 @@ body {
   box-shadow: $shadow-card;
   width: 480px;
   max-width: 100%;
+}
+
+.calculator-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
 
   h1 {
-    text-align: center;
     color: $color-text;
-    margin-bottom: 24px;
     font-size: 1.5rem;
+    margin: 0;
+  }
+}
+
+.currency-selector {
+  --vs-dropdown-min-width: 120px;
+  min-width: 140px;
+  flex-shrink: 0;
+
+  .vs__dropdown-toggle {
+    padding: 4px 8px;
+    border: 1px solid $color-border;
+    font-size: 0.875rem;
+  }
+
+  .vs__search {
+    font-size: 0.875rem;
+  }
+
+  .vs__selected {
+    font-size: 0.875rem;
   }
 }
 
@@ -88,6 +115,21 @@ body {
 
   > input::placeholder {
     color: $color-text-muted;
+  }
+
+  &--checkbox {
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+
+    input[type="checkbox"] {
+      width: auto;
+      cursor: pointer;
+    }
   }
 }
 
