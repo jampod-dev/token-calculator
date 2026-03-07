@@ -102,7 +102,6 @@
         <strong>{{ currentModel.name }}</strong>:
         ${{ currentModel.inputPrice }}/1M input tokens,
         ${{ currentModel.outputPrice }}/1M output tokens
-        <br>All prices in USD
       </p>
     </div>
   </div>
